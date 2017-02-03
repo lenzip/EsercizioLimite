@@ -88,7 +88,7 @@ void HWWLimitLikelihood(){
     RooRealVar r_ww("r_ww", "r_ww", 1, 0.1, 2);
     RooRealVar r_dytt("r_dytt", "r_dytt", 1, 0.1, 2);
     RooRealVar r_vv("r_vv", "r_vv", 1, 0.1, 2);
-    RooRealVar r_signal("r_signal", "r_signal", 1, 0.1, 2);
+    RooRealVar r_signal("r_signal", "r_signal", 1, -10, 10);
 
     RooFormulaVar top_norm("top_norm", "top*r_top", RooArgSet(top, r_top));
     RooFormulaVar ww_norm("ww_norm", "ww*r_ww", RooArgSet(ww, r_ww));
@@ -96,14 +96,42 @@ void HWWLimitLikelihood(){
     RooFormulaVar vv_norm("vv_norm", "vv*r_vv", RooArgSet(vv, r_vv));
     RooFormulaVar signal_norm("signal_norm", "signal*r_signal", RooArgSet(signal, r_signal));
 
-    RooLognormal ww_constraint("ww_constraint", "ww_constraint", r_ww, RooConst(1.), RooConst(1.10));
-    RooLognormal top_constraint("top_constraint", "top_constraint", r_top, RooConst(1.), RooConst(1.10));
-    RooLognormal dytt_constraint("dytt_constraint", "dytt_constraint", r_dytt, RooConst(1.), RooConst(1.10));
-    RooLognormal vv_constraint("vv_constraint", "vv_constraint", r_vv, RooConst(1.), RooConst(1.10)); 
+    RooGaussian ww_constraint("ww_constraint", "ww_constraint", r_ww, RooConst(1.), RooConst(0.10));
+    RooGaussian top_constraint("top_constraint", "top_constraint", r_top, RooConst(1.), RooConst(0.10));
+    RooGaussian dytt_constraint("dytt_constraint", "dytt_constraint", r_dytt, RooConst(1.), RooConst(0.10));
+    RooGaussian vv_constraint("vv_constraint", "vv_constraint", r_vv, RooConst(1.), RooConst(0.10)); 
   
     RooAddPdf model("model", "model", RooArgList(count_ww, count_top, count_dytt, count_vv, count_signal), RooArgList(ww_norm, top_norm, dytt_norm, vv_norm, signal_norm));
-    
-    model.fitTo(bkgData,ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint) ), Minos(r_signal));
+
+    RooAbsReal* nll = model.createNLL(bkgData, ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint)) );
+    RooMinuit(*nll).migrad();
+    RooMinuit(*nll).hesse();
+    RooMinuit(*nll).migrad();
+    RooPlot* frame1 = r_signal.frame(Bins(100),Range(0, 10),Title("LL and profileLL in frac")) ;
+    nll->plotOn(frame1, ShiftToZero()) ;
+    RooAbsReal* pll_r_signal = nll->createProfile(r_signal) ;
+    pll_r_signal->plotOn(frame1,LineColor(kRed)) ;
+    frame1->SetMinimum(0);
+    frame1->SetMaximum(5);
+    double limit = -1;
+    for (unsigned int k=0; k < 1000; ++k){
+      r_signal.setVal(k*0.01);
+      double deltaNLL = pll_r_signal->getVal();
+      if (deltaNLL > 2){
+        limit = k*0.01;
+        break;
+      }
+    }
+
+    cout << "\n\n95\% CL limit is " << limit << endl;
+
+
+    TFile outputfile("ciao.root", "recreate");
+    outputfile.cd();
+    frame1->Write(); 
+    //model.fitTo(bkgData,ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint) ), Minos(r_signal));
+
+
 
 
   }
