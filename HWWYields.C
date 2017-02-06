@@ -5,7 +5,7 @@ void HWWYields(){
   TString var = "mTi*(mTi<1000)+999.9*(mTi>=1000)";  // this is just mTi, bounded to 1000
   TString DirMC   = "eos/user/x/xjanssen/HWW2015/22Jan_25ns_mAODv2_MC/MCl2loose__hadd__bSFL2pTEff__l2tight__wwSel/";
   TString DirData = "eos/user/r/rebeca/HWW2015/";
-  TString outFileName="output.root";
+  TString outFileName="yields.root";
   
   TString Lumi = "*2.3" ;
 

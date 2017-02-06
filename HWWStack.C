@@ -1,7 +1,7 @@
 void HWWStack(){
-  TString fileInName="output.root";
+  TString fileInName="yields.root";
   TString mass="1000";
-  double scaleSignal=100.;
+  double scaleSignal=10.;
   TFile* fileIn =  new TFile(fileInName);
 
 

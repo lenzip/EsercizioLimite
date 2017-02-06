@@ -38,7 +38,7 @@ void HWWLimit(){
     double sigmaTot = sqrt(sigmaGaus*sigmaGaus + sigmaStat*sigmaStat);
    
    
-   double expectedLimit = 0. + sigmaTot*1.645;
+    double expectedLimit = 0. + sigmaTot*1.645;
     Double_t xq[5] = {0.025, 0.34, 0.5, 0.84, 0.975};  // position where to compute the quantiles in [0,1]
     Double_t yq[5];
     TH1F* hToy = new TH1F("hToy", "hToy", 2000, -1000, 1000); 
@@ -69,7 +69,11 @@ void HWWLimit(){
     expectedDo2[i] = (expectedLimit-yq[0])/signalAtCut;
 
   }
-  
+ 
+  TFile out(outFileName, "recreate");
+  out.cd();
+  TCanvas * c = new TCanvas();
+  c->cd();
   TGraphAsymmErrors * twoSigmaBandG = new TGraphAsymmErrors(nMasses, massesD, expected, 0, 0, expectedUp2, expectedDo2);
   twoSigmaBandG->SetFillColor(kYellow);
   TGraphAsymmErrors * oneSigmaBandG = new TGraphAsymmErrors(nMasses, massesD, expected, 0, 0, expectedUp1, expectedDo1);
@@ -82,4 +86,5 @@ void HWWLimit(){
   oneSigmaBandG->Draw("3 same");
   expectedG->Draw("L same");
   observedG->Draw("L same");
+  c->Write();
 }

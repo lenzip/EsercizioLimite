@@ -2,7 +2,7 @@ void HWWCut(){
   double xmin = 0.;
   double xmax = 1000.;
   double nbins = 100;
-  TString fileInName="output.root";
+  TString fileInName="yields.root";
   TString outFileName = "cut.root";
   
 
