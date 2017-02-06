@@ -1,6 +1,52 @@
 #include "TGraphAsymmErrors.h"
+#include "TString.h"
+#include "TFile.h"
+#include "TH1F.h"
+#include "TRandom3.h"
+#include "TCanvas.h"
+
+#include "RooRealVar.h"
+#include "RooGaussian.h"
+#include "RooDataHist.h"
+#include "RooHistPdf.h"
+#include "RooFormulaVar.h"
+#include "RooAddPdf.h"
+#include "RooMinuit.h"
+#include "RooPlot.h"
+#include "RooConstVar.h"
+
+#include <iostream>
 
 using namespace RooFit ;
+using namespace std ;
+
+std::pair<double, RooAbsReal*> getLimit(RooDataHist& hist, 
+                RooAbsPdf& model, 
+                RooArgSet& constraints, 
+                RooRealVar& variable,
+                bool doCleanup=true){ 
+  RooAbsReal* nll = model.createNLL(hist, ExternalConstraints(constraints) );
+  RooMinuit m(*nll);
+  m.setPrintLevel(-1000);
+  m.migrad();
+  m.hesse();
+  m.migrad();
+  // extract the profile likelihood in the signal strength parameter
+  // to be used toset the limit
+  RooAbsReal* profileLogLikelihood = nll->createProfile(variable) ;
+  double limit = -1;
+  // find the limit as the point at which the NLL crosses 2
+  for (unsigned int k=0; k < 1000; ++k){
+    variable.setVal(k*0.01);
+    double deltaNLL = profileLogLikelihood->getVal();
+    if (deltaNLL > 2){
+      limit = k*0.01;
+      break;
+    }
+  } 
+  if (doCleanup) delete nll;
+  return std::make_pair(limit, profileLogLikelihood);
+}
 
 void HWWLimitLikelihood(){
   TString fileCutName="cut.root";
@@ -111,6 +157,8 @@ void HWWLimitLikelihood(){
     // model representing the data as signal + background
     RooAddPdf model("model", "model", RooArgList(count_ww, count_top, count_dytt, count_vv, count_signal), RooArgList(ww_norm, top_norm, dytt_norm, vv_norm, signal_norm));
 
+    RooArgSet constraints(ww_constraint, top_constraint, dytt_constraint, vv_constraint);
+
     Double_t xq[5] = {0.025, 0.34, 0.5, 0.84, 0.975};  // position where to compute the quantiles in [0,1]
     Double_t yq[5];
     // auxiliary histogram to compute quantiles
@@ -126,55 +174,24 @@ void HWWLimitLikelihood(){
 
       // negative log likelyhood for each toy:
       // fit to the data
-      RooAbsReal* nll = model.createNLL(dhToy, ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint)) );
-      RooMinuit m(*nll);
-      m.setPrintLevel(-1000);
-      m.migrad();
-      m.hesse();
-      m.migrad();
-      // extract the profile likelihood in the signal strength parameter
-      // to be used toset the limit
-      RooAbsReal* pll_r_signal = nll->createProfile(r_signal) ;
-      double limit = -1;
-      // find the limit as the point at which the NLL crosses 2
-      for (unsigned int k=0; k < 1000; ++k){
-        r_signal.setVal(k*0.01);
-        double deltaNLL = pll_r_signal->getVal();
-        if (deltaNLL > 2){
-          limit = k*0.01;
-          break;
-        }
-      }
-      //cout << "95\% CL limit is " << limit << endl;
-      hLimitToy->Fill(limit);
+      std::pair<double, RooAbsReal*> limit = getLimit(dhToy, model, constraints, r_signal);
+      hLimitToy->Fill(limit.first);
       delete hToy;
-      delete nll;
     }  
     // find quantiles on the toys to get the 1 and 2 sigma bands
     hLimitToy->GetQuantiles(5,yq,xq);
 
     // get the observed limit
-    RooAbsReal* nllData = model.createNLL(dhData, ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint)) );
-    RooMinuit mData(*nllData);
-    mData.setPrintLevel(-1000);
-    mData.migrad();
-    mData.hesse();
-    mData.migrad();
-    RooAbsReal* pll_r_signalData = nllData->createProfile(r_signal);
+    std::pair<double, RooAbsReal*> observedLimit = getLimit(dhData, model, constraints, r_signal, false);
+
+    
     
     // get the profile likelihood for expected background (just for comparison purposes)
-    RooAbsReal* nllExpected = model.createNLL(bkgData, ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint)) );
-    RooMinuit mExpected(*nllExpected);
-    mExpected.setPrintLevel(-1000);
-    mExpected.migrad();
-    mExpected.hesse();
-    mExpected.migrad();
-    RooAbsReal* pll_r_signalExpected = nllExpected->createProfile(r_signal);
+    std::pair<double, RooAbsReal*> expectedLimit = getLimit(bkgData, model, constraints, r_signal, false);
 
-    RooPlot* frame1 = r_signal.frame(Bins(100),Range(0, 10),Title("profileLL in r_signal")) ;
-    //nll->plotOn(frame1, ShiftToZero()) ;
-    pll_r_signalExpected->plotOn(frame1,LineColor(kBlack)) ;
-    pll_r_signalData->plotOn(frame1,LineColor(kBlue)) ;
+    RooPlot* frame1 = r_signal.frame(Bins(100),Range(0., 10.),Title("profileLL in r_signal")) ;
+    expectedLimit.second->plotOn(frame1,LineColor(kBlack)) ;
+    observedLimit.second->plotOn(frame1,LineColor(kBlue)) ;
     frame1->SetMinimum(0);
     frame1->SetMaximum(5);
     frame1->Draw();
@@ -183,26 +200,15 @@ void HWWLimitLikelihood(){
     frame1->Write();
 
    
-    double observedLimit=9999;
-    //observed limit
-    for (unsigned int k=0; k < 1000; ++k){
-      r_signal.setVal(k*0.01);
-      double deltaNLL = pll_r_signalData->getVal();
-      if (deltaNLL > 2){
-        observedLimit = k*0.01;
-        break;
-      }
-    }
-
     cout << "mass " << masses[i] << "-->"
          << "expected limit: " << yq[2]
          << ", 2 sigma down: " << yq[0]
          << ", 1 sigma down: " << yq[1]
          << ", 1 sigma up: " << yq[3]
          << ", 2 sigma up: " << yq[4]
-         << ", observed: " << observedLimit << endl;
+         << ", observed: " << observedLimit.first << endl;
     expected[i] = yq[2];
-    observed[i] = observedLimit;
+    observed[i] = observedLimit.first;
     expectedUp1[i] = (yq[3]-yq[2]);
     expectedUp2[i] = (yq[4]-yq[2]);
     expectedDo1[i] = (yq[2]-yq[1]);
