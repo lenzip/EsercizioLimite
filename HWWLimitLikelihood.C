@@ -15,6 +15,7 @@ void HWWLimitLikelihood(){
   TFile filePlotIn(filePlotName);
   TFile fileCutIn(fileCutName);
 
+  // take histograms in
   TH1F* h_data   = (TH1F*) filePlotIn.Get("h_data");
   TH1F* h_top    = (TH1F*) filePlotIn.Get("h_top");
   TH1F* h_ww     = (TH1F*) filePlotIn.Get("h_ww");
@@ -22,8 +23,10 @@ void HWWLimitLikelihood(){
   TH1F* h_vv     = (TH1F*) filePlotIn.Get("h_vv"); 
   
   TRandom3 rand;
+  // silence roofit
   RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING) ;
  
+  // vectors to store limit values
   double expected[nMasses];
   double expectedUp1[nMasses];
   double expectedUp2[nMasses];
@@ -31,6 +34,7 @@ void HWWLimitLikelihood(){
   double expectedDo2[nMasses];
   double observed[nMasses];
 
+  // loop over masses
   for (unsigned int i = 0; i < nMasses; ++i){
     TH1F* hdta = (TH1F*) fileCutIn.Get("data"+masses[i]);
     TH1F* hbkg = (TH1F*) fileCutIn.Get("bkg"+masses[i]);
@@ -38,6 +42,7 @@ void HWWLimitLikelihood(){
     TH1F* hsignif = (TH1F*) fileCutIn.Get("significance"+masses[i]);
 
 
+    // get process yields cutting at max significance
     double signalAtCut     = hsig->GetBinContent(hsignif->GetMaximumBin());
     double backgroundAtCut = hbkg->GetBinContent(hsignif->GetMaximumBin());
     double dataAtCut       = hdta->GetBinContent(hsignif->GetMaximumBin());
@@ -52,54 +57,66 @@ void HWWLimitLikelihood(){
     cout << "dytt: " << dyttAtCut << endl;
     cout << "vv: " << vvAtCut << endl;
     cout << "signal: " << signalAtCut << endl;
-    cout << "background" << backgroundAtCut << endl;
+    cout << "background: " << backgroundAtCut << endl;
 
-
+    // convert single-binned histograms (representing event count) 
+    // to RooDataHist to be used with roofit
     TH1F hData("data", "data", 1,0,1);
     hData.SetBinContent(1,dataAtCut);
     TH1F hBkg("hBkg", "hBkg", 1,0,1);
     hBkg.SetBinContent(1,backgroundAtCut);
 
+    // this is a "dummy" variable used to just count events
     RooRealVar events("events", "events", 0, 1);
 
     RooDataHist bkgData("bkgData", "bkgData", RooArgList(events), &hBkg);
     RooDataHist dhData("dhData", "dhData", RooArgList(events), &hData);
 
+
+    // these represent single-binned PDFs (a workaround to make roofit work with event counts rather than PDFs)
     RooHistPdf count_ww("count_ww", "count_ww", events, bkgData);
     RooHistPdf count_top("count_top", "count_top",events, bkgData);
     RooHistPdf count_dytt("count_dytt", "count_dytt",events, bkgData);
     RooHistPdf count_vv("count_vv", "count_vv", events, bkgData);
     RooHistPdf count_signal("count_signal", "count_signal", events, bkgData);
     
+    // the expected normalizations of each process
     RooRealVar top("top", "top", topAtCut);
     RooRealVar ww("ww", "ww", wwAtCut);
     RooRealVar dytt("dytt", "dytt", dyttAtCut);
     RooRealVar vv("vv", "vv", vvAtCut);
     RooRealVar signal("signal", "signal", signalAtCut);
 
+    // a multiplicative factor for each process
     RooRealVar r_top("r_top", "r_top", 1, 0.1, 2);
     RooRealVar r_ww("r_ww", "r_ww", 1, 0.1, 2);
     RooRealVar r_dytt("r_dytt", "r_dytt", 1, 0.1, 2);
     RooRealVar r_vv("r_vv", "r_vv", 1, 0.1, 2);
     RooRealVar r_signal("r_signal", "r_signal", 1, -20, 20);
 
+    // the actual normalization for each process
     RooFormulaVar top_norm("top_norm", "top*r_top", RooArgSet(top, r_top));
     RooFormulaVar ww_norm("ww_norm", "ww*r_ww", RooArgSet(ww, r_ww));
     RooFormulaVar dytt_norm("dytt_norm", "dytt*r_dytt", RooArgSet(dytt, r_dytt));
     RooFormulaVar vv_norm("vv_norm", "vv*r_vv", RooArgSet(vv, r_vv));
     RooFormulaVar signal_norm("signal_norm", "signal*r_signal", RooArgSet(signal, r_signal));
 
+    // gaussian constraints on the normalizations of each background process
+    // These are nuisance parameters
     RooGaussian ww_constraint("ww_constraint", "ww_constraint", r_ww, RooConst(1.), RooConst(0.30));
     RooGaussian top_constraint("top_constraint", "top_constraint", r_top, RooConst(1.), RooConst(0.30));
     RooGaussian dytt_constraint("dytt_constraint", "dytt_constraint", r_dytt, RooConst(1.), RooConst(0.30));
     RooGaussian vv_constraint("vv_constraint", "vv_constraint", r_vv, RooConst(1.), RooConst(0.30)); 
   
+    // model representing the data as signal + background
     RooAddPdf model("model", "model", RooArgList(count_ww, count_top, count_dytt, count_vv, count_signal), RooArgList(ww_norm, top_norm, dytt_norm, vv_norm, signal_norm));
 
     Double_t xq[5] = {0.025, 0.34, 0.5, 0.84, 0.975};  // position where to compute the quantiles in [0,1]
     Double_t yq[5];
+    // auxiliary histogram to compute quantiles
     TH1F* hLimitToy = new TH1F("hLimitToy", "hLimitToy", 2000, -1000, 1000);
 
+    // run 100 toys to get the 1 sigma and 2 sigma bands
     for (unsigned j =0; j < 100; ++j){
       //cout << "Toy>>>" << j << endl;
       int dataToy = rand.Poisson(backgroundAtCut);
@@ -107,14 +124,19 @@ void HWWLimitLikelihood(){
       hToy->SetBinContent(1,dataToy);
       RooDataHist dhToy("dhToy", "dhToy", RooArgList(events), hToy);
 
+      // negative log likelyhood for each toy:
+      // fit to the data
       RooAbsReal* nll = model.createNLL(dhToy, ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint)) );
       RooMinuit m(*nll);
       m.setPrintLevel(-1000);
       m.migrad();
       m.hesse();
       m.migrad();
+      // extract the profile likelihood in the signal strength parameter
+      // to be used toset the limit
       RooAbsReal* pll_r_signal = nll->createProfile(r_signal) ;
       double limit = -1;
+      // find the limit as the point at which the NLL crosses 2
       for (unsigned int k=0; k < 1000; ++k){
         r_signal.setVal(k*0.01);
         double deltaNLL = pll_r_signal->getVal();
@@ -128,9 +150,10 @@ void HWWLimitLikelihood(){
       delete hToy;
       delete nll;
     }  
-
+    // find quantiles on the toys to get the 1 and 2 sigma bands
     hLimitToy->GetQuantiles(5,yq,xq);
 
+    // get the observed limit
     RooAbsReal* nllData = model.createNLL(dhData, ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint)) );
     RooMinuit mData(*nllData);
     mData.setPrintLevel(-1000);
@@ -138,7 +161,8 @@ void HWWLimitLikelihood(){
     mData.hesse();
     mData.migrad();
     RooAbsReal* pll_r_signalData = nllData->createProfile(r_signal);
-
+    
+    // get the profile likelihood for expected background (just for comparison purposes)
     RooAbsReal* nllExpected = model.createNLL(bkgData, ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint)) );
     RooMinuit mExpected(*nllExpected);
     mExpected.setPrintLevel(-1000);
@@ -203,13 +227,5 @@ void HWWLimitLikelihood(){
   observedG->Draw("L same");
   outputfile.cd();
   c->Write();
-
-    //outputfile.cd();
-    //frame1->Write(); 
-    //model.fitTo(bkgData,ExternalConstraints(RooArgSet(ww_constraint, top_constraint, dytt_constraint, vv_constraint) ), Minos(r_signal));
-
-
-
-
 
 }

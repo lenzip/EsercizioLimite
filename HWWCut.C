@@ -9,6 +9,7 @@ void HWWCut(){
   TString masses[8]={"300", "400", "500", "600", "700", "800", "900", "1000"};
   
 
+  // open file and get histograms
   TFile* fileIn =  new TFile(fileInName);
   TH1F* h_data   = (TH1F*) fileIn->Get("h_data");
   TH1F* h_top    = (TH1F*) fileIn->Get("h_top");
@@ -25,6 +26,7 @@ void HWWCut(){
   TFile* fileout = new TFile(outFileName, "recreate");
   fileout->cd();
   double step = (xmax-xmin)/nbins;
+  //loopover mass hypotheses
   for (unsigned int i = 0; i < 8; ++i){
     TH1F* h_signal = (TH1F*) fileIn->Get("h_signal"+masses[i]);
     TString histoName="significance"+masses[i];
@@ -35,6 +37,7 @@ void HWWCut(){
     TH1F* hbkg    = new TH1F(histoName, histoName, nbins, xmin, xmax);
     histoName="data"+masses[i];
     TH1F* hdta    = new TH1F(histoName, histoName, nbins, xmin, xmax);
+    // create running integral for each process and compute significance
     for (unsigned int j = 1; j < nbins+1; ++j){
       double bkg = h_bkg->Integral(j, nbins+1);
       double sig = h_signal->Integral(j, nbins+1);

@@ -32,7 +32,7 @@ void HWWLimit(){
 
     // compute expected limit with 10% uncertainty on the background
     // observation is 0 in this case
-    // assume 10% error on background
+    // assume 30% error on background
     double sigmaGaus = 0.30*backgroundAtCut;
     double sigmaStat = sqrt(backgroundAtCut);
     double sigmaTot = sqrt(sigmaGaus*sigmaGaus + sigmaStat*sigmaStat);
