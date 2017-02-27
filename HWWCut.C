@@ -6,7 +6,7 @@ void HWWCut(){
   TString outFileName = "cut.root";
   
 
-  TString masses[8]={"300", "400", "500", "600", "700", "800", "900", "1000"};
+  TString masses[7]={"300", "400", "500", "600", "700", "900", "1000"};
   
 
   // open file and get histograms
@@ -27,7 +27,7 @@ void HWWCut(){
   fileout->cd();
   double step = (xmax-xmin)/nbins;
   //loopover mass hypotheses
-  for (unsigned int i = 0; i < 8; ++i){
+  for (unsigned int i = 0; i < 7; ++i){
     TH1F* h_signal = (TH1F*) fileIn->Get("h_signal"+masses[i]);
     TString histoName="significance"+masses[i];
     TH1F* hsignif = new TH1F(histoName, histoName, nbins, xmin, xmax);

@@ -3,8 +3,8 @@ void HWWYields(){
   double xmax = 1000.;
   double nbins = 100;
   TString var = "mTi*(mTi<1000)+999.9*(mTi>=1000)";  // this is just mTi, bounded to 1000
-  TString DirMC   = "eos/user/x/xjanssen/HWW2015/22Jan_25ns_mAODv2_MC/MCl2loose__hadd__bSFL2pTEff__l2tight__wwSel/";
-  TString DirData = "eos/user/r/rebeca/HWW2015/";
+  TString DirMC   = "/tmp/mc/";
+  TString DirData = "/tmp/data/";
   TString outFileName="yields.root";
   
   TString Lumi = "*2.3" ;
@@ -48,14 +48,14 @@ void HWWYields(){
   // DATA
 
   TChain * Data = new TChain("Data");
-  Data->Add(DirData+"/03Mar_Run2015C_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015C_16Dec2015_DoubleEG.root/latino") ;
-  Data->Add(DirData+"/03Mar_Run2015C_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015C_16Dec2015_DoubleMuon.root/latino") ;
-  Data->Add(DirData+"/03Mar_Run2015C_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015C_16Dec2015_MuonEG.root/latino") ;
-  Data->Add(DirData+"/03Mar_Run2015C_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015C_16Dec2015_SingleMuon.root/latino") ;
-  Data->Add(DirData+"/03Mar_Run2015D_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015D_16Dec2015_DoubleEG.root/latino") ;
-  Data->Add(DirData+"/03Mar_Run2015D_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015D_16Dec2015_DoubleMuon.root/latino") ;
-  Data->Add(DirData+"/03Mar_Run2015D_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015D_16Dec2015_MuonEG.root/latino") ;
-  Data->Add(DirData+"/03Mar_Run2015D_16Dec2015/l2loose__hadd__EpTCorr__l2tight__wwSel/latino_Run2015D_16Dec2015_SingleMuon.root/latino") ;
+  Data->Add(DirData+"latino_Run2015C_16Dec2015_DoubleEG.root/latino") ;
+  Data->Add(DirData+"latino_Run2015C_16Dec2015_DoubleMuon.root/latino") ;
+  Data->Add(DirData+"latino_Run2015C_16Dec2015_MuonEG.root/latino") ;
+  Data->Add(DirData+"latino_Run2015C_16Dec2015_SingleMuon.root/latino") ;
+  Data->Add(DirData+"latino_Run2015D_16Dec2015_DoubleEG.root/latino") ;
+  Data->Add(DirData+"latino_Run2015D_16Dec2015_DoubleMuon.root/latino") ;
+  Data->Add(DirData+"latino_Run2015D_16Dec2015_MuonEG.root/latino") ;
+  Data->Add(DirData+"latino_Run2015D_16Dec2015_SingleMuon.root/latino") ;
   TH1F* hdata = new TH1F("h_data","Data",nbins, xmin, xmax);
   h_data->Sumw2();
   Data->Draw(var+">> h_data",cut+weightData);
@@ -107,8 +107,8 @@ void HWWYields(){
   h_vv->Write();
   cout << "MultiBosons: " << h_vv->Integral() << endl;
 
-  TString masses[8]={"300", "400", "500", "600", "700", "800", "900", "1000"};
-  for (unsigned int i = 0; i < 8; ++i){
+  TString masses[7]={"300", "400", "500", "600", "700", "900", "1000"};
+  for (unsigned int i = 0; i < 7; ++i){
     TChain * Signal = new TChain("Signal");
     Signal->Add(DirMC+"/latino_GluGluHToWWTo2L2Nu_M"+masses[i]+".root/latino");  
     Signal->Add(DirMC+"/latino_VBFHToWWTo2L2Nu_M"+masses[i]+".root/latino");  
