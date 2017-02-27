@@ -27,7 +27,8 @@ RooWorkspace* getWorkspace(TH1* ww,
                            TH1* top,
                            TH1* dytt,
                            TH1* vv, 
-                           TH1* sig){
+                           TH1* sig,
+                           TString label){
 
   // get x axis histogram from data (assume it is the same for all)
   // x is a variable running over the bins that have been measured
@@ -39,15 +40,15 @@ RooWorkspace* getWorkspace(TH1* ww,
   RooRealVar nu_dytt("nu_dytt", "nu_dytt", dytt->Integral());
   RooRealVar nu_vv  ("nu_vv",   "nu_vv",   vv->Integral());
   // same for the signal
-  RooRealVar nu_s   ("nu_s",    "nu_s",   sig->Integral());
+  RooRealVar nu_s   ("nu_s",    "nu_s",    sig->Integral());
 
   // Define a multiplier for each normalization, including the signal
-  RooRealVar mu     ("mu",      "mu",      -10, 10); // this is the POI
+  RooRealVar mu     ("mu",      "mu",      1, -20, 20); // this is the POI
   // the following are nuisances
-  RooRealVar mu_ww  ("mu_ww",   "mu_ww",   0.1, 10); 
-  RooRealVar mu_top ("mu_top",  "mu_top",  0.1, 10); 
-  RooRealVar mu_dytt("mu_dytt", "mu_dytt", 0.1, 10); 
-  RooRealVar mu_vv  ("mu_vv",   "mu_vv",   0.1, 10); 
+  RooRealVar mu_ww  ("mu_ww",   "mu_ww",   1, 0.1, 2); 
+  RooRealVar mu_top ("mu_top",  "mu_top",  1, 0.1, 2); 
+  RooRealVar mu_dytt("mu_dytt", "mu_dytt", 1, 0.1, 2); 
+  RooRealVar mu_vv  ("mu_vv",   "mu_vv",   1, 0.1, 2); 
 
   // we now write the normalization of each background and the signal as
   // the relevant mu_ times teh relevant nu_
@@ -79,16 +80,17 @@ RooWorkspace* getWorkspace(TH1* ww,
                                     RooArgSet(norm_s, norm_ww, norm_top, norm_dytt, norm_vv));
 
   // we now impose Gaussian constraints on the nuisances
-  RooGaussian constraint_ww   ("constraint_ww",   "constraint_ww",   mu_ww,   RooConst(1.), RooConst(0.1));
-  RooGaussian constraint_top  ("constraint_top",  "constraint_top",  mu_top,  RooConst(1.), RooConst(0.1));
-  RooGaussian constraint_dytt ("constraint_dytt", "constraint_dytt", mu_dytt, RooConst(1.), RooConst(0.1));
-  RooGaussian constraint_vv   ("constraint_vv",   "constraint_vv",   mu_vv,   RooConst(1.), RooConst(0.1));
+  RooGaussian constraint_ww   ("constraint_ww",   "constraint_ww",   mu_ww,   RooConst(1.), RooConst(0.3));
+  RooGaussian constraint_top  ("constraint_top",  "constraint_top",  mu_top,  RooConst(1.), RooConst(0.3));
+  RooGaussian constraint_dytt ("constraint_dytt", "constraint_dytt", mu_dytt, RooConst(1.), RooConst(0.3));
+  RooGaussian constraint_vv   ("constraint_vv",   "constraint_vv",   mu_vv,   RooConst(1.), RooConst(0.3));
 
   RooArgSet constraints(constraint_ww, constraint_top, constraint_dytt, constraint_vv);
 
-  RooWorkspace* w = new RooWorkspace("w", "w");
+  RooWorkspace* w = new RooWorkspace("w"+label, "w"+label);
   w->import(model);
   w->import(constraints);
+  w->defineSet("constraints", constraints);
 
   return w;
 
