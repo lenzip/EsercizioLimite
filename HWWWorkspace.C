@@ -87,9 +87,11 @@ RooWorkspace* getWorkspace(TH1* ww,
 
   RooArgSet constraints(constraint_ww, constraint_top, constraint_dytt, constraint_vv);
 
+  // save everything to a workspace for later use
   RooWorkspace* w = new RooWorkspace("w"+label, "w"+label);
   w->import(model);
   w->import(constraints);
+  // also give a name to this set, so we can reues it later
   w->defineSet("constraints", constraints);
 
   return w;
