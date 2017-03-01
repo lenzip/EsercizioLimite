@@ -17,19 +17,27 @@
 #include "RooPlot.h"
 #include "RooConstVar.h"
 #include "RooWorkspace.h"
+#include "RooStats/ModelConfig.h"
+#include "RooStats/ProfileLikelihoodCalculator.h"
+#include "RooStats/LikelihoodInterval.h"
 
 #include <iostream>
 
 using namespace RooFit ;
+using namespace RooStats ;
 using namespace std ;
 
+
 std::pair<double, RooAbsReal*> getLimit(TH1* hdata, RooWorkspace * w, bool doCleanup=true){ 
+  double limit = -1;
   RooRealVar * x = w->var("x");
-  RooAbsPdf* model = w->pdf("model");
-  RooRealVar * mu = w->var("mu");
-  const RooArgSet* constraints = w->set("constraints");
- 
   RooDataHist data("data", "data", *x, hdata);  
+  RooRealVar * mu = w->var("mu");
+  
+  RooAbsPdf* model = w->pdf("model");
+  const RooArgSet* constraints = w->set("constraints");
+  const RooArgSet* nuisances = w->set("nuisances");
+ 
 
 
   RooAbsReal* nll = model->createNLL(data, ExternalConstraints(*constraints) );
@@ -41,7 +49,6 @@ std::pair<double, RooAbsReal*> getLimit(TH1* hdata, RooWorkspace * w, bool doCle
   // extract the profile likelihood in the signal strength parameter
   // to be used toset the limit
   RooAbsReal* profileLogLikelihood = nll->createProfile(*mu) ;
-  double limit = -1;
   // find the limit as the point at which the NLL crosses 2
   for (unsigned int k=0; k < 1000; ++k){
     mu->setVal(k*0.01);
@@ -50,12 +57,27 @@ std::pair<double, RooAbsReal*> getLimit(TH1* hdata, RooWorkspace * w, bool doCle
       limit = k*0.01;
       break;
     }
-  } 
+  }
+  /*
+  ModelConfig config("config", w);
+  config.SetParametersOfInterest("mu");
+  config.SetPdf("constrained_model");
+  config.SetNuisanceParameters("mu_ww,mu_top,mu_dytt,mu_vv");
+  config.SetObservables("x");
+
+  
+  ProfileLikelihoodCalculator pl(data,config);
+  pl.SetConfidenceLevel(0.95); // 95% interval
+  LikelihoodInterval* interval = pl.GetInterval(); 
+  double limit2 = interval->UpperLimit(*mu);
+  
+  cout << "my limit: " << limit << " from RooStat " << limit2 << endl;
+  */
   if (doCleanup) delete nll;
   return std::make_pair(limit, profileLogLikelihood);
 }
 
-void HWWLimitLikelihood2(){
+void HWWLimitLikelihood(){
   TString fileCutName="cut.root";
   TString filePlotName="yields.root";
   
@@ -170,6 +192,7 @@ void HWWLimitLikelihood2(){
     frame1->SetNameTitle(masses[i], masses[i]);
     outputfile.cd();
     frame1->Write();
+    w->Write();
 
    
     cout << "mass " << masses[i] << "-->"
@@ -206,4 +229,5 @@ void HWWLimitLikelihood2(){
   observedG->Draw("L same");
   outputfile.cd();
   c->Write();
+  
 }

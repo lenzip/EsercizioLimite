@@ -13,6 +13,7 @@
 #include "RooHistPdf.h"
 #include "RooFormulaVar.h"
 #include "RooAddPdf.h"
+#include "RooProdPdf.h"
 #include "RooMinuit.h"
 #include "RooPlot.h"
 #include "RooConstVar.h"
@@ -86,13 +87,16 @@ RooWorkspace* getWorkspace(TH1* ww,
   RooGaussian constraint_vv   ("constraint_vv",   "constraint_vv",   mu_vv,   RooConst(1.), RooConst(0.3));
 
   RooArgSet constraints(constraint_ww, constraint_top, constraint_dytt, constraint_vv);
+  RooArgSet nuisances(mu_ww, mu_top, mu_dytt, mu_vv);
+
+  RooProdPdf constrained_model("constrained_model", "constrained_model", RooArgSet(model,constraints));
 
   // save everything to a workspace for later use
   RooWorkspace* w = new RooWorkspace("w"+label, "w"+label);
-  w->import(model);
-  w->import(constraints);
+  w->import(constrained_model);
   // also give a name to this set, so we can reues it later
   w->defineSet("constraints", constraints);
+  w->defineSet("nuisances", nuisances);
 
   return w;
 
