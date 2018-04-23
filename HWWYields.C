@@ -56,7 +56,7 @@ void HWWYields(){
   Data->Add(DirData+"latino_Run2015D_16Dec2015_DoubleMuon.root/latino") ;
   Data->Add(DirData+"latino_Run2015D_16Dec2015_MuonEG.root/latino") ;
   Data->Add(DirData+"latino_Run2015D_16Dec2015_SingleMuon.root/latino") ;
-  TH1F* hdata = new TH1F("h_data","Data",nbins, xmin, xmax);
+  TH1F* h_data = new TH1F("h_data","Data",nbins, xmin, xmax);
   h_data->Sumw2();
   Data->Draw(var+">> h_data",cut+weightData);
   h_data->Write();
@@ -96,12 +96,12 @@ void HWWYields(){
   // VV = WZ ZZ  WGsToElNuM WGsToMuNu WGsToTauNu WG WZ2L2Q ZZ2L2Q ZGToLLuG
   TChain * VV =  new TChain("VV");
   VV->Add(DirMC+"/latino_WZTo3LNu.root/latino");
-  VV->Add(DirMC+"/latino_ZZTo2L2Nu.root/latino");
+  //VV->Add(DirMC+"/latino_ZZTo2L2Nu.root/latino");
   VV->Add(DirMC+"/latino_WZZ.root/latino");
-  VV->Add(DirMC+"/latino_Wg_MADGRAPHMLM.root/latino");
+  //VV->Add(DirMC+"/latino_Wg_MADGRAPHMLM.root/latino");
   VV->Add(DirMC+"/latino_WgStarLNuEE.root/latino");
   VV->Add(DirMC+"/latino_WgStarLNuMuMu.root/latino");
-  TH1F* hvv = new TH1F("h_vv","WZ/ZZ/W#gamma/Z#gamma",nbins, xmin, xmax);
+  TH1F* h_vv = new TH1F("h_vv","WZ/ZZ/W#gamma/Z#gamma",nbins, xmin, xmax);
   h_vv->Sumw2();
   VV->Draw(var+">> h_vv",cut+weightMC+Lumi);
   h_vv->Write();

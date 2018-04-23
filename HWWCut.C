@@ -17,7 +17,7 @@ void HWWCut(){
   TH1F* h_dytt   = (TH1F*) fileIn->Get("h_dytt");
   TH1F* h_vv     = (TH1F*) fileIn->Get("h_vv");
 
-  TH1F* h_bkg = h_top->Clone();
+  TH1F* h_bkg = (TH1F*) h_top->Clone();
   h_bkg->SetNameTitle("background", "background");
   h_bkg->Add(h_ww);
   h_bkg->Add(h_dytt);

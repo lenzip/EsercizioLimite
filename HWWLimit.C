@@ -4,10 +4,10 @@ void HWWLimit(){
   TString fileInName="cut.root";
   TString outFileName = "limit.root";
 
-  const unsigned int nMasses=8;
+  const unsigned int nMasses=7;
 
-  TString masses[nMasses]={"300", "400", "500", "600", "700", "800", "900", "1000"};
-  double massesD[nMasses]={300, 400, 500, 600, 700, 800, 900, 1000};
+  TString masses[nMasses]={"300", "400", "500", "600", "700", "900", "1000"};
+  double massesD[nMasses]={300, 400, 500, 600, 700, 900, 1000};
 
   TFile filein(fileInName);
 
@@ -32,8 +32,8 @@ void HWWLimit(){
 
     // compute expected limit with 10% uncertainty on the background
     // observation is 0 in this case
-    // assume 30% error on background
-    double sigmaGaus = 0.30*backgroundAtCut;
+    // assume 10% error on background
+    double sigmaGaus = 0.10*backgroundAtCut;
     double sigmaStat = sqrt(backgroundAtCut);
     double sigmaTot = sqrt(sigmaGaus*sigmaGaus + sigmaStat*sigmaStat);
    
