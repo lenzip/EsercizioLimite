@@ -20,8 +20,10 @@
 #include "RooConstVar.h"
 #include "RooWorkspace.h"
 #include "RooStats/ModelConfig.h"
-#include "RooStats/ProfileLikelihoodCalculator.h"
+#include "RooStats/AsymptoticCalculator.h"
 #include "RooStats/LikelihoodInterval.h"
+#include "RooStats/ProfileLikelihoodTestStat.h"
+#include "RooStats/HypoTestInverter.h"
 
 #include <iostream>
 
@@ -29,29 +31,37 @@ using namespace RooFit ;
 using namespace RooStats ;
 using namespace std ;
 
-TH1*  generateOneToy(RooWorkspace * w, TH1* hbkg){
+
+RooDataHist* th1toDataHist(RooWorkspace * w, const TH1* h){
+  RooRealVar * x = w->var("x");
+  RooDataHist* data = new RooDataHist("data", "data", *x, h);
+  return data;
+}
+
+RooDataHist*  generateOneToy(RooWorkspace * w, const TH1* hbkg){
   w->loadSnapshot("bonly");
   RooAbsPdf* model = w->pdf("model");
   RooRealVar * x = w->var("x");
-  RooDataset* dataset = model->generate(RooArgSet(*x), hbkg->Integral(), Extended(), AutoBinned(true));
-
+  RooDataHist* dataset = model->generateBinned(RooArgSet(*x), hbkg->Integral(), Extended());
+  
+  return dataset;
   
 }
 
 
-std::pair<double, RooAbsReal*> getLimit(TH1* hdata, RooWorkspace * w, bool doCleanup=true){ 
+double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){ 
   double limit = -1;
   RooRealVar * x = w->var("x");
-  RooDataHist data("data", "data", *x, hdata);  
   RooRealVar * mu = w->var("mu");
   
+/*   
   RooAbsPdf* model = w->pdf("model");
   const RooArgSet* constraints = w->set("constraints");
   const RooArgSet* nuisances = w->set("nuisances");
  
 
 
-  RooAbsReal* nll = model->createNLL(data, ExternalConstraints(*constraints) );
+  RooAbsReal* nll = model->createNLL(*data, ExternalConstraints(*constraints) );
   RooMinuit m(*nll);
   m.setPrintLevel(-1000);
   m.migrad();
@@ -82,23 +92,53 @@ std::pair<double, RooAbsReal*> getLimit(TH1* hdata, RooWorkspace * w, bool doCle
        break;
     }  
   }
-  /*
+  if (doCleanup) delete nll;
+  return limit;
+*/  
+  
+    
+  w->var("mu")->setVal(1.);
   ModelConfig config("config", w);
   config.SetParametersOfInterest("mu");
   config.SetPdf("constrained_model");
   config.SetNuisanceParameters("mu_ww,mu_top,mu_dytt,mu_vv");
   config.SetObservables("x");
+  config.SetSnapshot(*(w->var("mu")));
 
+  ModelConfig* config_bonly = (ModelConfig*) config.Clone();
+  config_bonly->SetName("config_bonly");
+  RooRealVar* poi = (RooRealVar*) config_bonly->GetParametersOfInterest()->first();
+  poi->setVal(0);
+  config_bonly->SetSnapshot( *poi  );
+  poi->setVal(1);
   
-  ProfileLikelihoodCalculator pl(data,config);
-  pl.SetConfidenceLevel(0.95); // 95% interval
-  LikelihoodInterval* interval = pl.GetInterval(); 
-  double limit2 = interval->UpperLimit(*mu);
+  AsymptoticCalculator ac(*data, *config_bonly, config);
+  ac.SetOneSided(true);
+  // profile likelihood test statistics 
+  ProfileLikelihoodTestStat profll(*config.GetPdf());
+  // use one-sided profile likelihood
+  profll.SetOneSided(true);
+  AsymptoticCalculator::SetPrintLevel(-1);
+  HypoTestInverter calc(ac);
+  calc.SetTestStatistic(profll);
+  // set confidence level (e.g. 95% upper limits)
+  calc.SetConfidenceLevel(0.95); 
+  int npoints = 100;  // number of points to scan
+  double poimin = poi->getMin();
+  double poimax = poi->getMax();
+
+  std::cout << "Doing a fixed scan  in interval : " << poimin << " , " << poimax << std::endl;
+  calc.SetFixedScan(npoints,poimin,poimax);	
+
+  HypoTestInverterResult * r = calc.GetInterval();
   
-  cout << "my limit: " << limit << " from RooStat " << limit2 << endl;
-  */
-  if (doCleanup) delete nll;
-  return std::make_pair(limit, profileLogLikelihood);
+  
+
+  double limit2 = r->UpperLimit();	 
+  delete config_bonly; 
+
+  return limit2;
+  
 }
 
 void HWWLimitLikelihood(){
@@ -150,55 +190,37 @@ void HWWLimitLikelihood(){
     // auxiliary histogram to compute quantiles
     
     // get the profile likelihood for expected background (just for comparison purposes)
-    std::pair<double, RooAbsReal*> expectedLimit = getLimit(h_bkg, w, false);
+    double expectedLimit = getLimit(th1toDataHist(w, h_bkg), w, false);
 
     TH1F* hLimitToy = new TH1F("hLimitToy", "hLimitToy", 2000, -1000, 1000);
     // run 100 toys to get the 1 sigma and 2 sigma bands
     for (unsigned j =0; j < 100; ++j){
       
-      //cout << "Toy>>>" << j << endl;
-      int dataToy = rand.Poisson(backgroundAtCut);
-      TH1F * hToy = new TH1F("hToy", "hToy", 1,0,1);
-      hToy->SetBinContent(1,dataToy);
-      
       // negative log likelyhood for each toy:
       // fit to the data
-      std::pair<double, RooAbsReal*> limit = getLimit(hToy, w);
-      hLimitToy->Fill(limit.first);
+      RooDataHist* hToy = generateOneToy(w, h_bkg);
+      double limit = getLimit(hToy, w);
+      hLimitToy->Fill(limit);
       delete hToy;
     }  
     // find quantiles on the toys to get the 1 and 2 sigma bands
     hLimitToy->GetQuantiles(5,yq,xq);
 
     // get the observed limit
-    std::pair<double, RooAbsReal*> observedLimit = getLimit(h_data, w, false);
+    double observedLimit = getLimit(th1toDataHist(w, h_data), w, false);
 
     
     
 
-    RooRealVar * mu = w->var("mu");
-
-    RooPlot* frame1 = mu->frame(Bins(100),Range(0., 10.),Title("profileLL in mu")) ;
-    expectedLimit.second->plotOn(frame1,LineColor(kBlack)) ;
-    observedLimit.second->plotOn(frame1,LineColor(kBlue)) ;
-    frame1->SetMinimum(0);
-    frame1->SetMaximum(5);
-    frame1->Draw();
-    frame1->SetNameTitle(masses[i], masses[i]);
-    outputfile.cd();
-    frame1->Write();
-    w->Write();
-
-   
     cout << "mass " << masses[i] << "-->"
-         << "expected limit: " << expectedLimit.first 
+         << "expected limit: " << expectedLimit 
          << ", 2 sigma down: " << yq[0]
          << ", 1 sigma down: " << yq[1]
          << ", 1 sigma up: " << yq[3]
          << ", 2 sigma up: " << yq[4]
-         << ", observed: " << observedLimit.first << endl;
+         << ", observed: " << observedLimit << endl;
     expected[i] = yq[2];
-    observed[i] = observedLimit.first;
+    observed[i] = observedLimit;
     expectedUp1[i] = (yq[3]-yq[2]);
     expectedUp2[i] = (yq[4]-yq[2]);
     expectedDo1[i] = (yq[2]-yq[1]);
