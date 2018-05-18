@@ -114,14 +114,8 @@ double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){
   
   AsymptoticCalculator ac(*data, *config_bonly, config);
   ac.SetOneSided(true);
-  // profile likelihood test statistics 
-  ProfileLikelihoodTestStat profll(*config.GetPdf());
-  // use one-sided profile likelihood
-  profll.SetOneSided(true);
   AsymptoticCalculator::SetPrintLevel(-1);
   HypoTestInverter calc(ac);
-  calc.SetTestStatistic(profll);
-  // set confidence level (e.g. 95% upper limits)
   calc.SetConfidenceLevel(0.95); 
   int npoints = 100;  // number of points to scan
   double poimin = poi->getMin();
@@ -138,7 +132,7 @@ double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){
   delete config_bonly; 
 
   return limit2;
-  
+ 
 }
 
 void HWWLimitLikelihood(){
