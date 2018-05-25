@@ -20,10 +20,6 @@
 #include "RooConstVar.h"
 #include "RooWorkspace.h"
 #include "RooStats/ModelConfig.h"
-#include "RooStats/AsymptoticCalculator.h"
-#include "RooStats/LikelihoodInterval.h"
-#include "RooStats/ProfileLikelihoodTestStat.h"
-#include "RooStats/HypoTestInverter.h"
 
 #include <iostream>
 
@@ -54,85 +50,41 @@ double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){
   RooRealVar * x = w->var("x");
   RooRealVar * mu = w->var("mu");
   
-/*   
+   
   RooAbsPdf* model = w->pdf("model");
   const RooArgSet* constraints = w->set("constraints");
   const RooArgSet* nuisances = w->set("nuisances");
  
 
-
   RooAbsReal* nll = model->createNLL(*data, ExternalConstraints(*constraints) );
   RooMinuit m(*nll);
   m.setPrintLevel(-1000);
   m.migrad();
-  //m.hesse();
-  //m.migrad();
-  double muhat       = mu->getVal();
-  double delta_muhat = mu->getError();
-  cout << "muhat " << muhat << "+/-" << delta_muhat << endl;
-  // extract the profile likelihood in the signal strength parameter
-  // to be used toset the limit
-  RooAbsReal* profileLogLikelihood = nll->createProfile(*mu) ;
-  // find the limit as the point at which the NLL crosses 2
-  double cumulativeIntegral = 0.;
-  int k = 0;
+  if (mu->getVal() < 0){
+    //redo the fit freezing mu to 0
+    mu->setVal(0);
+    mu->setConstant(true);
+    m.migrad();
+  }
+
+  double minNLL = nll->getVal();
+    
   for (unsigned int k = 0; k < 5000; ++k){
     mu->setVal(k*0.01);
-    double t_mu_tilde = profileLogLikelihood->getVal() ;
-    //cout << "mutilde " << t_mu_tilde << endl;
-    // the asumptotic cumulative distribution for t_mu_tilde is:
-    // https://arxiv.org/pdf/1007.1727.pdf eq (46)
-    if (t_mu_tilde < muhat*muhat/(delta_muhat*delta_muhat))
-      cumulativeIntegral = 2*ROOT::Math::normal_cdf(sqrt(t_mu_tilde)) -1.;
-    else
-      cumulativeIntegral = ROOT::Math::normal_cdf(sqrt(t_mu_tilde))+ROOT::Math::normal_cdf((t_mu_tilde + muhat*muhat/(delta_muhat*delta_muhat))/2/muhat/delta_muhat) - 1.;
-    //cout << k*0.01 << " " << cumulativeIntegral << endl; 
-    if (cumulativeIntegral > 0.95){
+    mu->setConstant(true);
+    m.migrad();
+    double minNLLmu = nll->getVal();
+    double q_mu = 2*(minNLLmu - minNLL);
+    double CLsb = 1.-ROOT::Math::chisquared_cdf(q_mu,1.);  
+    //cout << "q_mu: " << q_mu << " CLsb " << CLsb << endl;
+    if (CLsb < 0.05){
        limit = k*0.01;
        break;
     }  
   }
   if (doCleanup) delete nll;
   return limit;
-*/  
   
-    
-  w->var("mu")->setVal(1.);
-  ModelConfig config("config", w);
-  config.SetParametersOfInterest("mu");
-  config.SetPdf("constrained_model");
-  config.SetNuisanceParameters("mu_ww,mu_top,mu_dytt,mu_vv");
-  config.SetObservables("x");
-  config.SetSnapshot(*(w->var("mu")));
-
-  ModelConfig* config_bonly = (ModelConfig*) config.Clone();
-  config_bonly->SetName("config_bonly");
-  RooRealVar* poi = (RooRealVar*) config_bonly->GetParametersOfInterest()->first();
-  poi->setVal(0);
-  config_bonly->SetSnapshot( *poi  );
-  poi->setVal(1);
-  
-  AsymptoticCalculator ac(*data, *config_bonly, config);
-  ac.SetOneSided(true);
-  AsymptoticCalculator::SetPrintLevel(-1);
-  HypoTestInverter calc(ac);
-  calc.SetConfidenceLevel(0.95); 
-  int npoints = 100;  // number of points to scan
-  double poimin = poi->getMin();
-  double poimax = poi->getMax();
-
-  std::cout << "Doing a fixed scan  in interval : " << poimin << " , " << poimax << std::endl;
-  calc.SetFixedScan(npoints,poimin,poimax);	
-
-  HypoTestInverterResult * r = calc.GetInterval();
-  
-  
-
-  double limit2 = r->UpperLimit();	 
-  delete config_bonly; 
-
-  return limit2;
- 
 }
 
 void HWWLimitLikelihood(){
