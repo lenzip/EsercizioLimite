@@ -58,24 +58,24 @@ double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){
 
   RooAbsReal* nll = model->createNLL(*data, ExternalConstraints(*constraints) );
   RooMinuit m(*nll);
-  m.setPrintLevel(-1000);
-  m.migrad();
-  if (mu->getVal() < 0){
+  m.setPrintLevel(-1000); //silence minuit
+  m.migrad(); //minimize
+  if (mu->getVal() < 0){ //if best fit is negative
     //redo the fit freezing mu to 0
     mu->setVal(0);
     mu->setConstant(true);
     m.migrad();
   }
 
-  double minNLL = nll->getVal();
+  double minNLL = nll->getVal(); //value of the negative log likelihood at global minimum
     
   for (unsigned int k = 0; k < 5000; ++k){
-    mu->setVal(k*0.01);
-    mu->setConstant(true);
-    m.migrad();
-    double minNLLmu = nll->getVal();
-    double q_mu = 2*(minNLLmu - minNLL);
-    double CLsb = 1.-ROOT::Math::chisquared_cdf(q_mu,1.);  
+    mu->setVal(k*0.01);  //set mu to a given value
+    mu->setConstant(true); // make it constant, so the fit does not touch it
+    m.migrad(); // minimize
+    double minNLLmu = nll->getVal(); // net the minimum of NLL for that choice of mu
+    double q_mu = 2*(minNLLmu - minNLL); // compute q_mu
+    double CLsb = 1.-ROOT::Math::chisquared_cdf(q_mu,1.);  /// compute its p-value 
     //cout << "q_mu: " << q_mu << " CLsb " << CLsb << endl;
     if (CLsb < 0.05){
        limit = k*0.01;
@@ -133,11 +133,11 @@ void HWWLimitLikelihood(){
 
     Double_t xq[5] = {0.025, 0.34, 0.5, 0.84, 0.975};  // position where to compute the quantiles in [0,1]
     Double_t yq[5];
-    // auxiliary histogram to compute quantiles
     
-    // get the profile likelihood for expected background (just for comparison purposes)
+    // get the expected limit 
     double expectedLimit = getLimit(th1toDataHist(w, h_bkg), w, false);
 
+    // auxiliary histogram to compute quantiles
     TH1F* hLimitToy = new TH1F("hLimitToy", "hLimitToy", 2000, -1000, 1000);
     // run 100 toys to get the 1 sigma and 2 sigma bands
     for (unsigned j =0; j < 100; ++j){
