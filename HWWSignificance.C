@@ -56,7 +56,6 @@ std::pair<double, RooAbsReal*> getSignif(TH1* hdata, RooWorkspace * w, bool doCl
 }
 
 void HWWSignificance(){
-  TString fileCutName="cut.root";
   TString filePlotName="yields.root";
   
   TFile outputfile("significanceProfileLikelihood.root", "recreate");
@@ -66,7 +65,6 @@ void HWWSignificance(){
   double massesD[nMasses]={300, 400, 500, 600, 700, 900, 1000};
 
   TFile filePlotIn(filePlotName);
-  TFile fileCutIn(fileCutName);
 
   // take histograms in
   TH1F* h_data   = (TH1F*) filePlotIn.Get("h_data");

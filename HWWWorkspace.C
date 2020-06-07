@@ -45,7 +45,7 @@ RooWorkspace* getWorkspace(TH1* ww,
   RooRealVar nu_s   ("nu_s",    "nu_s",    sig->Integral());
 
   // Define a multiplier for each normalization, including the signal
-  RooRealVar mu     ("mu",      "mu",      0., -2., 10.); // this is the POI
+  RooRealVar mu     ("mu",      "mu",      0., -10., 10.); // this is the POI
   // the following are nuisances
   RooRealVar mu_ww  ("mu_ww",   "mu_ww",   1, 0.01, 5); 
   RooRealVar mu_top ("mu_top",  "mu_top",  1, 0.01, 5); 

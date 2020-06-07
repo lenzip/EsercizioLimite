@@ -2,9 +2,9 @@ void HWWYields(){
   double xmin = 0.;
   double xmax = 1000.;
   double nbins = 10;
-  TString var = "mTi*(mTi<1000)+999.9*(mTi>=1000)";  // this is just mTi, bounded to 1000
-  TString DirMC   = "/tmp/mc/";
-  TString DirData = "/tmp/data/";
+  TString var = "min(mTi,999.)";  // this is just mTi, bounded to 1000
+  TString DirMC   = "/eos/user/l/lenzip/AnalisiDati/mc/";
+  TString DirData = "/eos/user/l/lenzip/AnalisiDati/data/";
   TString outFileName="yields.root";
   
   TString Lumi = "*2.3" ;

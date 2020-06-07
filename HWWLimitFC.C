@@ -60,6 +60,9 @@ double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){
   RooMinuit m(*nll);
   m.setPrintLevel(-1000); //silence minuit
   m.migrad(); //minimize
+  m.hesse(); //minimize
+  double muhat = mu->getVal();
+  double muerr = mu->getError();
   if (mu->getVal() < 0){ //if best fit is negative
     //redo the fit freezing mu to 0
     mu->setVal(0);
@@ -70,15 +73,25 @@ double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){
   double minNLL = nll->getVal(); //value of the negative log likelihood at global minimum
     
   for (unsigned int k = 0; k < 5000; ++k){
-    mu->setVal(k*0.01);  //set mu to a given value
+    double thismu = k*0.01;
+    mu->setVal(thismu);  //set mu to a given value
     mu->setConstant(true); // make it constant, so the fit does not touch it
     m.migrad(); // minimize
     double minNLLmu = nll->getVal(); // net the minimum of NLL for that choice of mu
     double q_mu = 2*(minNLLmu - minNLL); // compute q_mu
-    double CLsb = 1.-ROOT::Math::chisquared_cdf(q_mu,1.);  /// compute its p-value 
-    //cout << "q_mu: " << q_mu << " CLsb " << CLsb << endl;
+    double CLsb = 0;
+    // protect in case of numerical precision issues
+    if (q_mu<1e-3)
+      q_mu=0;
+    if (q_mu <= thismu*thismu/muerr/muerr){
+      CLsb = 1. - (2*ROOT::Math::normal_cdf(sqrt(q_mu))-1.); 
+    }
+    else{
+      CLsb = 1. - (ROOT::Math::normal_cdf(sqrt(q_mu))+ROOT::Math::normal_cdf((q_mu+thismu*thismu/muerr/muerr)/(2*(thismu/muerr)))-1.);
+    } 
+    //CLsb = 1.-ROOT::Math::chisquared_cdf(q_mu,1.);
     if (CLsb < 0.05){
-       limit = k*0.01;
+       limit = thismu;
        break;
     }  
   }
@@ -88,7 +101,6 @@ double getLimit(RooDataHist* data, RooWorkspace * w, bool doCleanup=true){
 }
 
 void HWWLimitLikelihood(){
-  TString fileCutName="cut.root";
   TString filePlotName="yields.root";
   
   TFile outputfile("limitProfileLikelihood.root", "recreate");
@@ -98,7 +110,6 @@ void HWWLimitLikelihood(){
   double massesD[nMasses]={300, 400, 500, 600, 700, 900, 1000};
 
   TFile filePlotIn(filePlotName);
-  TFile fileCutIn(fileCutName);
 
   // take histograms in
   TH1F* h_data   = (TH1F*) filePlotIn.Get("h_data");
@@ -136,7 +147,6 @@ void HWWLimitLikelihood(){
     
     // get the expected limit 
     double expectedLimit = getLimit(th1toDataHist(w, h_bkg), w, false);
-
     // auxiliary histogram to compute quantiles
     TH1F* hLimitToy = new TH1F("hLimitToy", "hLimitToy", 2000, -1000, 1000);
     // run 100 toys to get the 1 sigma and 2 sigma bands
@@ -172,7 +182,7 @@ void HWWLimitLikelihood(){
     expectedDo1[i] = (yq[2]-yq[1]);
     expectedDo2[i] = (yq[2]-yq[0]);
 
-    delete hLimitToy;
+    //delete hLimitToy;
 
   }
 
